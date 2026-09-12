@@ -16,7 +16,7 @@ interface ScrollVideoHeroProps {
 }
 
 export default function ScrollVideoHero({
-  videoSrc = "/videos/tcg demo animation.mp4",
+  videoSrc = "/videos/tcg_demo_transparent.webm",
   scrollDistance = "1000vh",
 }: ScrollVideoHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);

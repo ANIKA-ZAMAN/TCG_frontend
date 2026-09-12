@@ -18,7 +18,7 @@ interface HeroProps {
 }
 
 export default function Hero({
-  videoSrc = "/videos/tcg demo animation.mp4",
+  videoSrc = "/videos/tcg_demo_transparent.webm",
   scrollDistance = "800vh",
 }: HeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
