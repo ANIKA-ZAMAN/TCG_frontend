@@ -10,14 +10,53 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
+// ---------------------------------------------------------------------------
+// Cinematic pacing curve
+// ---------------------------------------------------------------------------
+// Each point maps [scrollProgress, videoProgress].
+// "Hold" zones use a wide scroll range for a tiny video range, forcing the
+// user to dwell on that moment. "Slow" zones give more scroll-per-second
+// than a linear mapping. The curve is continuous — no snapping.
+// ---------------------------------------------------------------------------
+const PACING_CURVE: [number, number][] = [
+  [0.00, 0.00], // ── Start
+  [0.12, 0.08], // ── ARRIVAL          (very slow – mystery)
+  [0.22, 0.18], // ── DISCOVERY        (slow – anticipation)
+  [0.35, 0.32], // ── OPEN             (moderate – pack opens)
+  [0.50, 0.50], // ── EMERGENCE        (cards appearing)
+  [0.63, 0.65], // ── FORMATION        (fan building)
+  [0.70, 0.68], // ── FORMATION HOLD   (barely moves – payoff dwell)
+  [0.80, 0.78], // ── EPIC SEPARATES   (slow separation)
+  [0.90, 0.88], // ── EPIC REVEAL      (dramatic)
+  [0.94, 0.90], // ── EPIC HOLD        (barely moves – hero moment)
+  [0.98, 0.96], // ── EPIC RETURNS     (moderate return)
+  [1.00, 1.00], // ── COLLECTION + FINAL HOLD
+];
+
+/** Piecewise-linear interpolation through PACING_CURVE. O(n) with n=12. */
+function remapProgress(scrollP: number): number {
+  if (scrollP <= 0) return 0;
+  if (scrollP >= 1) return 1;
+
+  for (let i = 1; i < PACING_CURVE.length; i++) {
+    const [s0, v0] = PACING_CURVE[i - 1];
+    const [s1, v1] = PACING_CURVE[i];
+    if (scrollP <= s1) {
+      const t = (scrollP - s0) / (s1 - s0);
+      return v0 + t * (v1 - v0);
+    }
+  }
+  return 1;
+}
+
 interface ScrollVideoHeroProps {
   videoSrc?: string;
-  scrollDistance?: string; // 800vh - 1200vh (default 1000vh)
+  scrollDistance?: string; // 1200vh–1800vh (default 1600vh)
 }
 
 export default function ScrollVideoHero({
   videoSrc = "/videos/tcg_demo_transparent.webm",
-  scrollDistance = "1000vh",
+  scrollDistance = "1600vh",
 }: ScrollVideoHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
@@ -52,6 +91,7 @@ export default function ScrollVideoHero({
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       smoothWheel: true,
+      touchMultiplier: 1.5,
       syncTouch: false,
     });
 
@@ -102,8 +142,8 @@ export default function ScrollVideoHero({
       scrubProxy.progress = 0;
       targetTime = 0;
 
-      // Master continuous timeline: maps physical scroll across 1000vh directly to video duration
-      // scrub: 2 provides heavy, cinematic, slow, buttery momentum
+      // Master continuous timeline: maps physical scroll across 1600vh to video duration
+      // via the PACING_CURVE remapping. scrub: 2 provides cinematic damping.
       tweenInstance = gsap.to(scrubProxy, {
         progress: 1,
         ease: "none",
@@ -120,8 +160,10 @@ export default function ScrollVideoHero({
           if (!video || !video.duration || isNaN(video.duration)) return;
 
           const p = Math.min(Math.max(0, scrubProxy.progress), 1);
-          // video.currentTime = progress * video.duration
-          targetTime = Math.min(p * video.duration, video.duration - 0.001);
+          // Cinematic pacing: remap scroll progress through the pacing curve
+          // so important story beats get more breathing room
+          const videoP = remapProgress(p);
+          targetTime = Math.min(videoP * video.duration, video.duration - 0.001);
           performSeek();
 
           // Direct DOM updates (zero React state updates on scroll)

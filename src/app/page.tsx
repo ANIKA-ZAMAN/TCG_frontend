@@ -12,7 +12,7 @@ export default function Home() {
       {/* Standalone Smooth Scroll Video Hero */}
       <ScrollVideoHero
         videoSrc="/videos/tcg_demo_transparent.webm"
-        scrollDistance="1000vh"
+        scrollDistance="1600vh"
       />
     </main>
   );
